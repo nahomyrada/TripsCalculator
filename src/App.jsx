@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import Calculator from './components/Calculator'
 import Dashboard from './components/Dashboard'
+import TripDetail from './components/TripDetail'
 import Settings from './components/Settings'
 import BottomNav from './components/BottomNav'
 import { useConfig } from './hooks/useConfig'
@@ -9,13 +10,42 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('calculator')
   const [settingsOpen, setSettingsOpen] = useState(false)
 
+  // Trip detail navigation
+  const [selectedTrip, setSelectedTrip] = useState(null)
+  const [onTripDeletedCb, setOnTripDeletedCb] = useState(null)
+
   // Load config at the root level so Settings can trigger a refresh
-  // that propagates down to Calculator and Dashboard.
   const { config, loading: configLoading, refresh } = useConfig()
 
   const handleSettingsSaved = () => {
     refresh()
     setSettingsOpen(false)
+  }
+
+  // Navigate into trip detail
+  const handleTripSelect = useCallback((trip, onDeleted) => {
+    setSelectedTrip(trip)
+    // Store callback wrapped in a function so useState doesn't call it
+    setOnTripDeletedCb(() => onDeleted)
+  }, [])
+
+  // Navigate back from trip detail
+  const handleBackFromDetail = useCallback(() => {
+    setSelectedTrip(null)
+    setOnTripDeletedCb(null)
+  }, [])
+
+  // Show the TripDetail screen (full-screen, hides everything else)
+  if (selectedTrip) {
+    return (
+      <div className="app">
+        <TripDetail
+          trip={selectedTrip}
+          onBack={handleBackFromDetail}
+          onDeleted={onTripDeletedCb}
+        />
+      </div>
+    )
   }
 
   return (
@@ -49,7 +79,9 @@ export default function App() {
         {!settingsOpen && activeTab === 'calculator' && (
           <Calculator config={config} configLoading={configLoading} />
         )}
-        {!settingsOpen && activeTab === 'dashboard' && <Dashboard />}
+        {!settingsOpen && activeTab === 'dashboard' && (
+          <Dashboard onTripSelect={handleTripSelect} />
+        )}
       </div>
 
       {/* Bottom nav — hidden while settings open */}
